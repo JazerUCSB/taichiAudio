@@ -28,7 +28,7 @@ phase_offset = ti.field(dtype=ti.float32, shape=shape[0])
 gui = ti.GUI("GPU Audio", res=(shape[1], shape[0]))
 
 @ti.kernel
-def addOtones(t: float, lfo_frequency: float):
+def addOtones(lfo_frequency: float):
     for harmonic in range(128):
         n = harmonic + 1
         f0 = lfo_frequency
@@ -68,14 +68,14 @@ t = 0
 # Main loop
 try:
     while gui.running and stream.is_active():
-        #start_time = time.time()
+        
 
         # Calculate LFO frequency
         lfo_frequency = lfo_frequency_min + 0.5 * (np.sin(tau * t / lfo_duration) + 1) * lfo_frequency_range
 
-        addOtones(t, lfo_frequency)
-        #end_time = time.time()
-        t += shape[1] # Update time
+        addOtones(lfo_frequency)
+        
+        t += shape[1] / samplerate # Update time
         
         # Synchronize Taichi kernel
         ti.sync()
