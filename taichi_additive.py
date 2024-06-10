@@ -9,8 +9,8 @@ samplerate = 48000
 tau = 6.28318530717958647692
 
 # Define LFO parameters
-lfo_frequency_min = 55  # Minimum frequency of LFO
-lfo_frequency_max = 295  # Maximum frequency of LFO
+lfo_frequency_min = 27.5  # Minimum frequency of LFO
+lfo_frequency_max = 27.5  # Maximum frequency of LFO
 lfo_duration = 60  # Duration of LFO oscillation (in seconds)
 
 # Calculate LFO parameters
@@ -22,25 +22,28 @@ data = ti.field(dtype=ti.float32, shape=shape)
 waveform_buffer = np.zeros(shape[1], dtype=np.float32)  # Buffer for the waveform data
 
 # Store the phase for each harmonic
-phase_accum = np.zeros(128, dtype=np.float32)
+phase_offset = ti.field(dtype=ti.float32, shape=shape[0])
 
 # Initialize Taichi GUI
 gui = ti.GUI("GPU Audio", res=(shape[1], shape[0]))
 
 @ti.kernel
-def addOtones(t: float, last_phase: ti.types.ndarray(), lfo_frequency: float):
+def addOtones(t: float, lfo_frequency: float):
     for harmonic in range(128):
         n = harmonic + 1
         f0 = lfo_frequency
-        for sample in range(shape[1]): 
-            if n * f0 < ((samplerate // 2)-1):
-                phase = last_phase[harmonic] + tau * n * f0 * sample / samplerate
+        if n * f0 < ((samplerate // 2) - 1):
+            for sample in range(shape[1]):
+                phase = phase_offset[harmonic] + (tau * n * f0 * sample) / samplerate
+                phase %= tau
                 data[harmonic, sample] = ti.sin(phase) / n
-        if n * f0 < ((samplerate // 2)-1):   
-            last_phase[harmonic] = (tau * n * f0 * shape[1] / samplerate) % tau
+            phase_offset[harmonic] = (tau * n * f0 * shape[1]) / samplerate    
+           
+            
 
 # Initialize PyAudio
 p = pyaudio.PyAudio()
+
 
 # Define the stream callback function
 def callback(in_data, frame_count, time_info, status):
@@ -65,14 +68,14 @@ t = 0
 # Main loop
 try:
     while gui.running and stream.is_active():
-        start_time = time.time()
+        #start_time = time.time()
 
         # Calculate LFO frequency
         lfo_frequency = lfo_frequency_min + 0.5 * (np.sin(tau * t / lfo_duration) + 1) * lfo_frequency_range
 
-        addOtones(t, phase_accum, lfo_frequency)
-        end_time = time.time()
-        t += shape[1] / samplerate  # Update time
+        addOtones(t, lfo_frequency)
+        #end_time = time.time()
+        t += shape[1] # Update time
         
         # Synchronize Taichi kernel
         ti.sync()
