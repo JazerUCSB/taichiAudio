@@ -10,7 +10,7 @@ tau = 6.28318530717958647692
 
 # Define LFO parameters
 lfo_frequency_min = 27.5  # Minimum frequency of LFO
-lfo_frequency_max = 227.5  # Maximum frequency of LFO
+lfo_frequency_max = 27.5  # Maximum frequency of LFO
 lfo_duration = 60  # Duration of LFO oscillation (in seconds)
 
 # Calculate LFO parameters
@@ -35,11 +35,13 @@ def addOtones(lfo_frequency: float):
         f0 = lfo_frequency
         if n * f0 < ((samplerate // 2) - 1):
             for sample in range(shape[1]):
-                phase = (tau * n * f0 * (sample + phase_offset[harmonic])) / samplerate
-                if phase>tau:
+                phase =  phase_offset[harmonic] + (tau * n * f0 * sample) / samplerate
+                if phase>=tau:
                     phase -= tau
                 data[harmonic, sample] = ti.sin(phase) / n
-            phase_offset[harmonic] = (phase_offset[harmonic] + shape[1]) % shape[1]     
+            phase_offset[harmonic] = phase_offset[harmonic] +  (tau * n * f0 * shape[1]) / samplerate
+            if phase_offset[harmonic]>=tau:
+                phase_offset[harmonic] -= tau 
             
 
 # Initialize PyAudio
